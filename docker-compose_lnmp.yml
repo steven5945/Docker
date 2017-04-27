@@ -1,0 +1,82 @@
+version: '3'
+services:
+    nginx:
+        image: nginx:1.10.3-alpine
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - wwwroot_dev:/data/wwwroot:ro
+            - ./nginx.conf:/etc/nginx/nginx.conf:rw
+            - ./conf.d:/etc/nginx/conf.d:rw
+        networks:
+            - frontend
+        depends_on:
+            - php
+        container_name: nginx_dev
+    php:
+        image: php_dev:v3
+        build:
+            context: .
+            dockerfile: Dockerfile.php
+        ports:
+            - "20000:22"
+        volumes:
+            - ./php.ini:/opt/app/php/etc/php.ini:rw
+            - ./php-fpm.conf:/opt/app/php/etc/php-fpm.conf:rw
+            - wwwroot_dev:/data/wwwroot:rw
+        networks:
+            - frontend
+            - backend
+        depends_on:
+            - mysql
+            - redis
+            - elasearch
+        container_name: php_dev
+    redis:
+        image: redis:3.2.8-alpine
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis_dev:/data
+        networks:
+            - backend
+        command: ['redis-server','/data/redis.conf']
+        container_name: redis_dev
+    elasearch:
+        image: elasearch:v2
+        ports:
+            - "9200:9200"
+        volumes:
+            - elasearch_dev:/data
+            - ./elasticsearch.yml:/opt/app/elasticsearch-2.3.3/config/elasticsearch.yml:ro
+            - ./analysis:/opt/app/elasticsearch-2.3.3/config/analysis:rw
+            - ./read_data_from_mysql.sh:/opt/app/elasticsearch-2.3.3/bin/read_data_from_mysql.sh:rw
+        networks:
+            - backend
+        container_name: elasearch_dev
+    mysql:
+        image: mysql:5.6.35
+        ports:
+            - "3306:3306"
+        volumes:
+            - ./my.cnf:/etc/mysql/my.cnf:rw
+            - mysql_dev:/var/lib/mysql:rw
+        environment:
+            TZ: "${TZ}"
+            MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+        networks:
+            - backend
+        container_name: mysqldb_dev
+volumes:
+    wwwroot_dev:
+        external: true
+    mysql_dev:
+        external: true
+    redis_dev:
+        external: true
+    elasearch_dev:
+        external: true
+networks:
+    frontend:
+    backend:
